@@ -1,72 +1,41 @@
-import { useState } from "react";
-import { Input, Select, Button } from "@/components/ui";
-import { Card, CardContent } from "@/components/ui/card";
-import { MapPin } from "lucide-react";
-import dynamic from "next/dynamic";
+import streamlit as st
+import requests
+import folium
+from streamlit_folium import folium_static
 
-const Map = dynamic(() => import("@/components/Map"), { ssr: false });
+# Title
+st.title("Audience Planning Tool")
 
-export default function AudiencePlanner() {
-  const [regionType, setRegionType] = useState("National");
-  const [filters, setFilters] = useState({
-    income: "",
-    housePrice: "",
-    language: "",
-  });
-  const [results, setResults] = useState([]);
+# Region selection
+region_type = st.selectbox("Select Region Type", ["National", "State", "DMA"])
 
-  const handleSearch = async () => {
-    // Fetch relevant zip codes from a backend service that scrapes and aggregates web data
-    const response = await fetch("/api/getZipCodes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ regionType, filters }),
-    });
-    const data = await response.json();
-    setResults(data.zipCodes);
-  };
+# User Inputs
+income = st.text_input("Household Income ($)")
+house_price = st.text_input("Average House Price ($)")
+language = st.text_input("Language Spoken")
 
-  return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Audience Planning Tool</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Select value={regionType} onChange={(e) => setRegionType(e.target.value)}>
-          <option value="National">National</option>
-          <option value="State">State</option>
-          <option value="DMA">DMA</option>
-        </Select>
-        <Input
-          type="text"
-          placeholder="Household Income ($)"
-          value={filters.income}
-          onChange={(e) => setFilters({ ...filters, income: e.target.value })}
-        />
-        <Input
-          type="text"
-          placeholder="Average House Price ($)"
-          value={filters.housePrice}
-          onChange={(e) => setFilters({ ...filters, housePrice: e.target.value })}
-        />
-        <Input
-          type="text"
-          placeholder="Language Spoken"
-          value={filters.language}
-          onChange={(e) => setFilters({ ...filters, language: e.target.value })}
-        />
-      </div>
-      <Button className="mt-4" onClick={handleSearch}>Find Zip Codes</Button>
-      <div className="mt-6">
-        {results.map((zip) => (
-          <Card key={zip} className="mb-2 flex items-center gap-3 p-4">
-            <MapPin className="text-blue-500" />
-            <CardContent>{zip}</CardContent>
-          </Card>
-        ))}
-      </div>
-      <div className="mt-6">
-        <h2 className="text-xl font-semibold mb-2">Zip Codes Map</h2>
-        <Map zipCodes={results} />
-      </div>
-    </div>
-  );
-}
+# Search button
+if st.button("Find Zip Codes"):
+    # Replace with your API or data source
+    response = requests.post("https://your-api-endpoint.com/getZipCodes", json={
+        "regionType": region_type,
+        "filters": {"income": income, "housePrice": house_price, "language": language}
+    })
+    
+    data = response.json()
+    zip_codes = data.get("zipCodes", [])
+
+    if zip_codes:
+        st.success(f"Found {len(zip_codes)} matching Zip Codes!")
+        st.write(zip_codes)
+        
+        # Map Visualization
+        m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)  # USA Center
+        for zip_code in zip_codes:
+            # Fetch Lat/Long for Zip Code (Replace with your geolocation API)
+            lat, lon = 37.7749, -122.4194  # Example coordinates (San Francisco)
+            folium.Marker([lat, lon], popup=f"Zip: {zip_code}").add_to(m)
+
+        folium_static(m)
+    else:
+        st.error("No matching zip codes found!")
