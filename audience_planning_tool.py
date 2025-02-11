@@ -5,9 +5,15 @@ import requests
 from streamlit_folium import folium_static
 
 # Function to Fetch Publicly Available Data
+@st.cache_data
 def fetch_public_data():
     url = "https://public.opendatasoft.com/explore/dataset/us-zip-code-latitude-and-longitude/download/?format=csv"
-    return pd.read_csv(url)
+    try:
+        data = pd.read_csv(url)
+        return data
+    except Exception as e:
+        st.error("Failed to fetch ZIP code data. Please try again later.")
+        return pd.DataFrame()  # Return an empty DataFrame to prevent app crashes
 
 # Function to Fetch Nearby Businesses
 def fetch_nearby_businesses(lat, lon, business_type):
@@ -23,11 +29,7 @@ def fetch_nearby_businesses(lat, lon, business_type):
     return business_data.get(business_type, [])
 
 # Load Data
-@st.cache_data
-def load_data():
-    return fetch_public_data()
-
-data = load_data()
+data = fetch_public_data()
 
 # List of all states
 states = [
@@ -65,37 +67,40 @@ language = st.text_input("Language Spoken")
 
 # Search button
 if st.button("Find Zip Codes"):
-    filtered_data = data.copy()
-    
-    if selected_states:
-        filtered_data = filtered_data[filtered_data["state"].isin(selected_states)]
-    if selected_dma:
-        filtered_data = filtered_data[filtered_data["dma"] == selected_dma]
-    if income_range:
-        filtered_data = filtered_data[(filtered_data["income"] >= income_range[0]) & (filtered_data["income"] <= income_range[1])]
-    if house_price_range:
-        filtered_data = filtered_data[(filtered_data["house_price"] >= house_price_range[0]) & (filtered_data["house_price"] <= house_price_range[1])]
-    if language:
-        filtered_data = filtered_data[filtered_data["language"] == language]
-    
-    zip_codes = filtered_data["zip_code"].tolist()
-    
-    if zip_codes:
-        st.success(f"Found {len(zip_codes)} matching Zip Codes!")
-        st.write(zip_codes)
-        
-        # Map Visualization
-        m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)  # USA Center
-        for _, row in filtered_data.iterrows():
-            folium.Marker([row["lat"], row["lon"]], popup=f"Zip: {row['zip_code']}").add_to(m)
-
-        folium_static(m)
-        
-        # Business Search
-        business_type = st.selectbox("Select Business Type", ["Golf Courses", "Bars", "Movie Theaters", "Banks", "Shopping Malls", "Quick Service Restaurants"])
-        if st.button("Find Nearby Businesses"):
-            for _, row in filtered_data.iterrows():
-                businesses = fetch_nearby_businesses(row["lat"], row["lon"], business_type)
-                st.write(f"Businesses near Zip {row['zip_code']}: {businesses}")
+    if data.empty:
+        st.error("No data available for processing.")
     else:
-        st.error("No matching zip codes found!")
+        filtered_data = data.copy()
+        
+        if selected_states:
+            filtered_data = filtered_data[filtered_data["state"].isin(selected_states)]
+        if selected_dma:
+            filtered_data = filtered_data[filtered_data["dma"] == selected_dma]
+        if income_range:
+            filtered_data = filtered_data[(filtered_data["income"] >= income_range[0]) & (filtered_data["income"] <= income_range[1])]
+        if house_price_range:
+            filtered_data = filtered_data[(filtered_data["house_price"] >= house_price_range[0]) & (filtered_data["house_price"] <= house_price_range[1])]
+        if language:
+            filtered_data = filtered_data[filtered_data["language"] == language]
+        
+        zip_codes = filtered_data["zip_code"].tolist()
+        
+        if zip_codes:
+            st.success(f"Found {len(zip_codes)} matching Zip Codes!")
+            st.write(zip_codes)
+            
+            # Map Visualization
+            m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)  # USA Center
+            for _, row in filtered_data.iterrows():
+                folium.Marker([row["lat"], row["lon"]], popup=f"Zip: {row['zip_code']}").add_to(m)
+
+            folium_static(m)
+            
+            # Business Search
+            business_type = st.selectbox("Select Business Type", ["Golf Courses", "Bars", "Movie Theaters", "Banks", "Shopping Malls", "Quick Service Restaurants"])
+            if st.button("Find Nearby Businesses"):
+                for _, row in filtered_data.iterrows():
+                    businesses = fetch_nearby_businesses(row["lat"], row["lon"], business_type)
+                    st.write(f"Businesses near Zip {row['zip_code']}: {businesses}")
+        else:
+            st.error("No matching zip codes found!")
