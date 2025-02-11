@@ -39,6 +39,9 @@ states = [
 # List of DMAs (Example - Replace with real DMA data)
 dma_list = ["New York", "Los Angeles", "Chicago", "Houston", "San Francisco"]
 
+# List of Languages
+languages = ["English", "Spanish", "Chinese (Mandarin)", "Chinese (Cantonese)", "Japanese", "Tagalog", "Vietnamese", "Russian", "Ukrainian", "Korean", "Hindi"]
+
 # Title
 st.title("Audience Planning Tool")
 
@@ -63,7 +66,7 @@ else:
 # User Inputs with Ranges
 income_range = st.slider("Household Income Range ($)", 0, 500000, (50000, 150000), step=5000)
 house_price_range = st.slider("Average House Price Range ($)", 0, 2000000, (200000, 800000), step=10000)
-language = st.text_input("Language Spoken")
+selected_languages = st.multiselect("Select Language(s) Spoken", languages)
 
 # Search button
 if st.button("Find Zip Codes"):
@@ -80,14 +83,19 @@ if st.button("Find Zip Codes"):
             filtered_data = filtered_data[(filtered_data["income"] >= income_range[0]) & (filtered_data["income"] <= income_range[1])]
         if house_price_range:
             filtered_data = filtered_data[(filtered_data["house_price"] >= house_price_range[0]) & (filtered_data["house_price"] <= house_price_range[1])]
-        if language:
-            filtered_data = filtered_data[filtered_data["language"] == language]
+        if selected_languages:
+            filtered_data = filtered_data[filtered_data["language"].isin(selected_languages)]
         
         zip_codes = filtered_data["zip_code"].tolist()
         
         if zip_codes:
             st.success(f"Found {len(zip_codes)} matching Zip Codes!")
             st.write(zip_codes)
+            
+            # Display Language Indexing
+            st.write("### Language Indexing in Suggested Zip Codes")
+            language_counts = filtered_data["language"].value_counts()
+            st.bar_chart(language_counts)
             
             # Map Visualization
             m = folium.Map(location=[37.0902, -95.7129], zoom_start=4)  # USA Center
