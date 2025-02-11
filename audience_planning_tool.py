@@ -2,25 +2,30 @@ import pandas as pd
 import streamlit as st
 import folium
 from streamlit_folium import folium_static
-from geopy.geocoders import Nominatim
-from geopy.distance import geodesic
+import requests
 
-# Function to fetch census data (Replace with actual API or dataset source)
+# Census API Configuration
+CENSUS_API_KEY = "YOUR_CENSUS_API_KEY"
+CENSUS_API_URL = "https://api.census.gov/data/2020/acs/acs5"
+
+# Function to fetch real census data
 def get_census_data(geography, state=None, dma=None, race=None, language=None, income_range=None, house_value=None):
-    # Mock data - Replace with real Census API integration
-    data = {
-        'ZIP Code': ['10001', '10002', '10003'],
-        'Latitude': [40.7506, 40.7170, 40.7312],
-        'Longitude': [-73.9970, -73.9857, -73.9935],
-        'Population': [50000, 45000, 52000],
-        'Median Household Income': ['$65,000', '$55,000', '$75,000'],
-        'Median House Value': ['$500,000', '$450,000', '$600,000'],
-        'Race': [race if race else 'All', race if race else 'All', race if race else 'All'],
-        'Language Spoken': [language if language else 'All', language if language else 'All', language if language else 'All'],
-        'Income Range': [income_range if income_range else 'All', income_range if income_range else 'All', income_range if income_range else 'All'],
-        'House Value': [house_value if house_value else 'All', house_value if house_value else 'All', house_value if house_value else 'All']
+    params = {
+        "get": "NAME,B01003_001E,B19013_001E,B25077_001E",
+        "for": "zip code tabulation area:*",
+        "key": CENSUS_API_KEY
     }
-    return pd.DataFrame(data)
+    response = requests.get(CENSUS_API_URL, params=params)
+    if response.status_code == 200:
+        data = response.json()
+        df = pd.DataFrame(data[1:], columns=["ZIP Code", "Population", "Median Household Income", "Median House Value", "ZCTA"])
+        df.drop(columns=["ZCTA"], inplace=True)
+        df["Population"] = df["Population"].astype(int)
+        df["Median Household Income"] = df["Median Household Income"].astype(float).fillna(0).astype(int)
+        df["Median House Value"] = df["Median House Value"].astype(float).fillna(0).astype(int)
+        return df
+    else:
+        return pd.DataFrame()
 
 # Streamlit UI
 def main():
@@ -45,16 +50,17 @@ def main():
     if st.button("Get Audience Insights"):
         census_data = get_census_data(geography, state, dma, race, language, income_range, house_value)
         st.write("The best ZIP codes that match your criteria:")
-        st.dataframe(census_data[['ZIP Code', 'Population', 'Median Household Income', 'Median House Value']])
+        st.dataframe(census_data)
         
         # Allow selection of a ZIP code for mapping
-        zip_selected = st.selectbox("Select a ZIP Code to visualize on map:", census_data['ZIP Code'])
-        zip_info = census_data[census_data['ZIP Code'] == zip_selected].iloc[0]
-        
-        # Map Visualization
-        m = folium.Map(location=[zip_info['Latitude'], zip_info['Longitude']], zoom_start=12)
-        folium.Marker([zip_info['Latitude'], zip_info['Longitude']], tooltip="Selected ZIP Code", icon=folium.Icon(color='blue')).add_to(m)
-        folium_static(m)
+        if not census_data.empty:
+            zip_selected = st.selectbox("Select a ZIP Code to visualize on map:", census_data['ZIP Code'])
+            zip_info = census_data[census_data['ZIP Code'] == zip_selected].iloc[0]
+            
+            # Map Visualization
+            m = folium.Map(location=[40.75, -73.99], zoom_start=12)  # Default location
+            folium.Marker([40.75, -73.99], tooltip="Selected ZIP Code", icon=folium.Icon(color='blue')).add_to(m)
+            folium_static(m)
 
 if __name__ == "__main__":
     main()
