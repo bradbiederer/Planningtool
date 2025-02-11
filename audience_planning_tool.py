@@ -6,7 +6,7 @@ from streamlit_folium import folium_static
 
 # Function to Fetch Publicly Available Data
 def fetch_public_data():
-    url = "https://raw.githubusercontent.com/plotly/datasets/master/usa_zip_codes.csv"  # Example dataset
+    url = "https://public.opendatasoft.com/explore/dataset/us-zip-code-latitude-and-longitude/download/?format=csv"
     return pd.read_csv(url)
 
 # Function to Fetch Nearby Businesses
