@@ -7,13 +7,24 @@ from streamlit_folium import folium_static
 # Function to Fetch Publicly Available Data
 @st.cache_data
 def fetch_public_data():
-    url = "https://public.opendatasoft.com/explore/dataset/us-zip-code-latitude-and-longitude/download/?format=csv"
+    url = "https://public.opendatasoft.com/explore/dataset/usa-irs-zipcode-data/download/?format=csv"
     try:
         data = pd.read_csv(url)
         return data
     except Exception as e:
         st.error("Failed to fetch ZIP code data. Please try again later.")
         return pd.DataFrame()  # Return an empty DataFrame to prevent app crashes
+
+# Function to Fetch Zillow Home Value Data
+@st.cache_data
+def fetch_zillow_data():
+    url = "https://www.zillow.com/research/data/"  # Replace with actual Zillow dataset link if available
+    try:
+        data = pd.read_csv(url)
+        return data
+    except Exception as e:
+        st.error("Failed to fetch Zillow home value data. Please try again later.")
+        return pd.DataFrame()
 
 # Function to Fetch Nearby Businesses
 def fetch_nearby_businesses(lat, lon, business_type):
@@ -30,14 +41,12 @@ def fetch_nearby_businesses(lat, lon, business_type):
 
 # Load Data
 data = fetch_public_data()
+zillow_data = fetch_zillow_data()
 
 # List of all states
 states = [
     "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"
 ]
-
-# List of DMAs (Example - Replace with real DMA data)
-dma_list = ["New York", "Los Angeles", "Chicago", "Houston", "San Francisco"]
 
 # List of Languages
 languages = ["English", "Spanish", "Chinese (Mandarin)", "Chinese (Cantonese)", "Japanese", "Tagalog", "Vietnamese", "Russian", "Ukrainian", "Korean", "Hindi"]
@@ -46,22 +55,13 @@ languages = ["English", "Spanish", "Chinese (Mandarin)", "Chinese (Cantonese)", 
 st.title("Audience Planning Tool")
 
 # Region selection
-region_type = st.selectbox("Select Region Type", ["National", "State", "DMA"])
+region_type = st.selectbox("Select Region Type", ["National", "State"])
 
 # Conditional State Selection
 if region_type == "State":
     selected_states = st.multiselect("Select State(s)", states)
 else:
     selected_states = []
-
-# Conditional DMA Selection
-if region_type == "DMA":
-    selected_dma = st.text_input("Enter DMA (start typing)")
-    matched_dmas = [dma for dma in dma_list if selected_dma.lower() in dma.lower()]
-    if matched_dmas:
-        selected_dma = st.selectbox("Select DMA", matched_dmas)
-else:
-    selected_dma = ""
 
 # User Inputs with Ranges
 income_range = st.slider("Household Income Range ($)", 0, 500000, (50000, 150000), step=5000)
@@ -70,15 +70,13 @@ selected_languages = st.multiselect("Select Language(s) Spoken", languages)
 
 # Search button
 if st.button("Find Zip Codes"):
-    if data.empty:
+    if data.empty or zillow_data.empty:
         st.error("No data available for processing.")
     else:
         filtered_data = data.copy()
         
         if selected_states:
             filtered_data = filtered_data[filtered_data["state"].isin(selected_states)]
-        if selected_dma:
-            filtered_data = filtered_data[filtered_data["dma"] == selected_dma]
         if income_range:
             filtered_data = filtered_data[(filtered_data["income"] >= income_range[0]) & (filtered_data["income"] <= income_range[1])]
         if house_price_range:
